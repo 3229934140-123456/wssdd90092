@@ -8,11 +8,10 @@ import {
   Clock,
   Moon,
   Sun,
-  ArrowRightLeft,
 } from "lucide-react";
 import { useEventStore } from "@/store/eventStore";
 import { HANDOFF_SECTION_LABELS, type HandoffSection as HandoffSectionType } from "@/types";
-import { getCurrentShift, getPreviousShift } from "@/utils/shift";
+import { getCurrentShift, getPreviousShift, getShiftRelation } from "@/utils/shift";
 
 interface HandoffSectionProps {
   eventId: string;
@@ -64,6 +63,7 @@ const sectionOrder: HandoffSectionType[] = ["unverified", "to_contact", "confide
 export default function HandoffSection({ eventId }: HandoffSectionProps) {
   const allNotes = useEventStore((s) => s.handoffNotes);
   const addHandoffNote = useEventStore((s) => s.addHandoffNote);
+  const getShiftRelationForNote = useEventStore((s) => s.getShiftRelationForNote);
 
   const currentShift = useMemo(() => getCurrentShift(), []);
   const prevShift = useMemo(() => getPreviousShift(), []);
@@ -93,20 +93,17 @@ export default function HandoffSection({ eventId }: HandoffSectionProps) {
   const getSectionNotes = (section: HandoffSectionType) =>
     notes.filter((n) => n.section === section);
 
-  const currentShiftCount = notes.filter((n) => n.shiftId === currentShift.id).length;
-  const prevShiftCount = notes.filter((n) => n.shiftId === prevShift.id).length;
-  const olderCount = notes.filter(
-    (n) => n.shiftId !== currentShift.id && n.shiftId !== prevShift.id
-  ).length;
+  const currentShiftCount = notes.filter((n) => getShiftRelationForNote(n) === "current").length;
+  const prevShiftCount = notes.filter((n) => getShiftRelationForNote(n) === "previous").length;
+  const olderCount = notes.filter((n) => getShiftRelationForNote(n) === "older").length;
 
   const ShiftBadge = ({
-    shiftId,
-    shiftLabel,
+    note,
   }: {
-    shiftId: string;
-    shiftLabel: string;
+    note: { shiftId: string; shiftLabel: string };
   }) => {
-    if (shiftId === currentShift.id) {
+    const rel = getShiftRelationForNote(note as any);
+    if (rel === "current") {
       return (
         <span className="tag gap-1 bg-primary-100 text-primary-700 border border-primary-200">
           <Sun className="w-3 h-3" />
@@ -114,7 +111,7 @@ export default function HandoffSection({ eventId }: HandoffSectionProps) {
         </span>
       );
     }
-    if (shiftId === prevShift.id) {
+    if (rel === "previous") {
       return (
         <span className="tag gap-1 bg-warning-100 text-warning-700 border border-warning-200">
           <Moon className="w-3 h-3" />
@@ -124,7 +121,7 @@ export default function HandoffSection({ eventId }: HandoffSectionProps) {
     }
     return (
       <span className="tag bg-slate-100 text-slate-500 border border-slate-200 text-[10px]">
-        {shiftLabel}
+        {note.shiftLabel}
       </span>
     );
   };
@@ -169,25 +166,26 @@ export default function HandoffSection({ eventId }: HandoffSectionProps) {
         </div>
       </div>
 
-      {notes.some((n) => n.shiftId === prevShift.id) && (
+      {notes.some((n) => getShiftRelationForNote(n as any) === "previous") && (
         <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-warning-50 via-warning-50/70 to-amber-50 border border-warning-200 animate-slide-up">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-warning-100 flex items-center justify-center">
-              <ArrowRightLeft className="w-5 h-5 text-warning-600" />
+              <Moon className="w-5 h-5 text-warning-600" />
             </div>
             <div>
               <p className="font-bold text-warning-800 text-base">
                 上一班交接提醒 · {prevShift.label}
               </p>
               <p className="text-xs text-warning-600">
-                以下为上一班次留下的交接信息，请重点关注
+                以下为上一班次留下的交接信息，请重点关注并在「交接状态」中标记处理进度
               </p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {sectionOrder.map((section) => {
               const prevNotes = notes.filter(
-                (n) => n.section === section && n.shiftId === prevShift.id
+                (n) =>
+                  n.section === section && getShiftRelationForNote(n as any) === "previous"
               );
               if (prevNotes.length === 0) return null;
               const cfg = sectionConfig[section];
@@ -256,36 +254,39 @@ export default function HandoffSection({ eventId }: HandoffSectionProps) {
                     </p>
                   </div>
                 ) : (
-                  sectionNotes.map((note, idx) => (
-                    <div
-                      key={note.id}
-                      className={`rounded-xl p-4 shadow-sm border transition-all animate-slide-up ${
-                        note.shiftId === currentShift.id
-                          ? "bg-white border-white/80"
-                          : note.shiftId === prevShift.id
-                          ? "bg-warning-50/50 border-warning-200"
-                          : "bg-white/60 border-white/60"
-                      }`}
-                      style={{ animationDelay: `${idx * 40}ms` }}
-                    >
-                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                        <ShiftBadge shiftId={note.shiftId} shiftLabel={note.shiftLabel} />
+                  sectionNotes.map((note, idx) => {
+                    const rel = getShiftRelationForNote(note as any);
+                    return (
+                      <div
+                        key={note.id}
+                        className={`rounded-xl p-4 shadow-sm border transition-all animate-slide-up ${
+                          rel === "current"
+                            ? "bg-white border-white/80"
+                            : rel === "previous"
+                            ? "bg-warning-50/50 border-warning-200"
+                            : "bg-white/60 border-white/60"
+                        }`}
+                        style={{ animationDelay: `${idx * 40}ms` }}
+                      >
+                        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                          <ShiftBadge note={note} />
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                          {note.content}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100/60">
+                          <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {note.author}
+                          </span>
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {note.createdAt}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                        {note.content}
-                      </p>
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100/60">
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {note.author}
-                        </span>
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {note.createdAt}
-                        </span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

@@ -6,6 +6,9 @@ import PageHeader from "@/components/PageHeader";
 import TimelineSection from "@/components/TimelineSection";
 import ConcernsSection from "@/components/ConcernsSection";
 import HandoffSection from "@/components/HandoffSection";
+import HandoffStatusSection from "@/components/HandoffStatusSection";
+import EventMaterialsSection from "@/components/EventMaterialsSection";
+import ReviewOutlineSection from "@/components/ReviewOutlineSection";
 import {
   AlertTriangle,
   Clock,
@@ -21,6 +24,8 @@ export default function EventDetail() {
   const navigate = useNavigate();
   const events = useEventStore((s) => s.events);
   const allTimelineCards = useEventStore((s) => s.timelineCards);
+  const getMaterialsByEventId = useEventStore((s) => s.getMaterialsByEventId);
+  const allMaterials = useEventStore((s) => s.materials);
 
   const event = useMemo(
     () => events.find((e) => e.id === id),
@@ -32,6 +37,10 @@ export default function EventDetail() {
         .filter((t) => t.eventId === id)
         .sort((a, b) => a.order - b.order),
     [allTimelineCards, id]
+  );
+  const materials = useMemo(
+    () => getMaterialsByEventId(id || ""),
+    [getMaterialsByEventId, id, allMaterials]
   );
 
   if (!event) {
@@ -114,7 +123,7 @@ export default function EventDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-slate-100">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
               <div className="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center">
                 <Calendar className="w-4.5 h-4.5 text-primary-700" />
@@ -151,6 +160,17 @@ export default function EventDetail() {
                 <p className="text-sm font-semibold text-slate-700">王主任</p>
               </div>
             </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+              <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center">
+                <FileText className="w-4.5 h-4.5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">待补材料</p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {materials.filter((m) => m.status !== "approved").length} 项
+                </p>
+              </div>
+            </div>
           </div>
 
           {event.reviewConclusion && (
@@ -169,9 +189,21 @@ export default function EventDetail() {
 
         <TimelineSection cards={timelineCards.length > 0 ? timelineCards : []} />
 
+        <HandoffStatusSection eventId={event.id} />
+
         <ConcernsSection eventId={event.id} />
 
         <HandoffSection eventId={event.id} />
+
+        <EventMaterialsSection eventId={event.id} eventTitle={event.title} />
+
+        {event.isReview && (
+          <ReviewOutlineSection
+            event={event}
+            timelineCards={timelineCards}
+            eventId={event.id}
+          />
+        )}
       </main>
     </div>
   );

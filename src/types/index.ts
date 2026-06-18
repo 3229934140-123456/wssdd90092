@@ -63,7 +63,30 @@ export interface ShiftInfo {
   id: string;
   label: string;
   startAt: string;
+  dateStr: string;
+  shiftType: "day" | "night";
 }
+
+export interface HandoffStatusItem {
+  id: string;
+  eventId: string;
+  noteId: string;
+  section: HandoffSection;
+  content: string;
+  done: boolean;
+  createdAt: string;
+}
+
+export interface EventHandoffStatus {
+  eventId: string;
+  shiftId: string;
+  accepted: boolean;
+  acceptedAt: string;
+  acceptedBy: string;
+  items: HandoffStatusItem[];
+}
+
+export type ShiftRelation = "current" | "previous" | "older";
 
 export interface MaterialItem {
   id: string;
