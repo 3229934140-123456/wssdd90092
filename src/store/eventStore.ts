@@ -14,6 +14,31 @@ import {
   mockHandoffNotes,
   mockMaterials,
 } from "@/data/mock";
+import {
+  getCurrentShift,
+  STORAGE_KEY_HANDOFF,
+  STORAGE_KEY_CONCERNS,
+} from "@/utils/shift";
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      return JSON.parse(raw) as T;
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
+function saveToStorage<T>(key: string, value: T) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
 
 interface EventStore {
   events: EventItem[];
@@ -22,10 +47,6 @@ interface EventStore {
   handoffNotes: HandoffNote[];
   materials: MaterialItem[];
 
-  getEventById: (id: string) => EventItem | undefined;
-  getTimelineByEventId: (eventId: string) => TimelineCard[];
-  getConcernsByEventId: (eventId: string) => ConcernItem[];
-  getHandoffNotesByEventId: (eventId: string) => HandoffNote[];
   toggleConcernChecked: (concernId: string) => void;
   addHandoffNote: (
     eventId: string,
@@ -33,68 +54,51 @@ interface EventStore {
     content: string,
     author: string
   ) => void;
-  getWeeklyEvents: () => EventItem[];
-  getReviewEvents: () => EventItem[];
-  getPendingMaterials: () => MaterialItem[];
 }
 
 export const useEventStore = create<EventStore>((set, get) => ({
   events: mockEvents,
   timelineCards: mockTimelineCards,
-  concerns: mockConcerns,
-  handoffNotes: mockHandoffNotes,
+  concerns: loadFromStorage<ConcernItem[]>(STORAGE_KEY_CONCERNS, mockConcerns),
+  handoffNotes: loadFromStorage<HandoffNote[]>(STORAGE_KEY_HANDOFF, mockHandoffNotes),
   materials: mockMaterials,
 
-  getEventById: (id) => get().events.find((e) => e.id === id),
-
-  getTimelineByEventId: (eventId) =>
-    get()
-      .timelineCards.filter((t) => t.eventId === eventId)
-      .sort((a, b) => a.order - b.order),
-
-  getConcernsByEventId: (eventId) =>
-    get()
-      .concerns.filter((c) => c.eventId === eventId)
-      .sort((a, b) => b.count - a.count),
-
-  getHandoffNotesByEventId: (eventId) =>
-    get()
-      .handoffNotes.filter((h) => h.eventId === eventId)
-      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
-
   toggleConcernChecked: (concernId) =>
-    set((state) => ({
-      concerns: state.concerns.map((c) =>
+    set((state) => {
+      const next = state.concerns.map((c) =>
         c.id === concernId ? { ...c, checked: !c.checked } : c
-      ),
-    })),
+      );
+      saveToStorage(STORAGE_KEY_CONCERNS, next);
+      return { concerns: next };
+    }),
 
   addHandoffNote: (eventId, section, content, author) =>
-    set((state) => ({
-      handoffNotes: [
+    set((state) => {
+      const shift = getCurrentShift();
+      const now = new Date();
+      const createdAt = now
+        .toLocaleString("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+        .replace(/\//g, "-");
+      const next = [
         ...state.handoffNotes,
         {
-          id: `h-${Date.now()}`,
+          id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           eventId,
           section,
           content,
           author,
-          createdAt: new Date()
-            .toLocaleString("zh-CN", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-            .replace(/\//g, "-"),
+          createdAt,
+          shiftId: shift.id,
+          shiftLabel: shift.label,
         },
-      ],
-    })),
-
-  getWeeklyEvents: () => get().events,
-
-  getReviewEvents: () => get().events.filter((e) => e.isReview || e.status === "reviewed"),
-
-  getPendingMaterials: () => get().materials.filter((m) => m.status !== "approved"),
+      ];
+      saveToStorage(STORAGE_KEY_HANDOFF, next);
+      return { handoffNotes: next };
+    }),
 }));

@@ -293,6 +293,8 @@ export const mockHandoffNotes: HandoffNote[] = [
       "1. 有网友称'水烧开后有怪味'，目前尚未核实，建议安排水质复检；2. 传闻XX小区有老人因饮用浑水身体不适就医，未确认具体医院和人员信息。",
     author: "张值班",
     createdAt: "2026-06-17 22:30",
+    shiftId: "2026-06-17-night",
+    shiftLabel: "2026-06-17 夜班",
   },
   {
     id: "h-001-2",
@@ -302,6 +304,8 @@ export const mockHandoffNotes: HandoffNote[] = [
       "需联系部门：1. 县水务局供水科（李科长 138XXXX），确认管网冲洗结束时间；2. XX街道办事处（王主任 139XXXX），协调社区开展入户解释；3. 县卫健局，协调出具官方水质安全意见。",
     author: "张值班",
     createdAt: "2026-06-17 22:35",
+    shiftId: "2026-06-17-night",
+    shiftLabel: "2026-06-17 夜班",
   },
   {
     id: "h-001-3",
@@ -311,6 +315,8 @@ export const mockHandoffNotes: HandoffNote[] = [
       "1. 水务局内部承认管网冲洗未按规定提前48小时通知，此信息暂不宜公开，待统一口径；2. 县领导对此事高度关注，要求24小时内必须解决并发布权威说明。",
     author: "张值班",
     createdAt: "2026-06-17 22:40",
+    shiftId: "2026-06-17-night",
+    shiftLabel: "2026-06-17 夜班",
   },
   {
     id: "h-003-1",
@@ -320,6 +326,8 @@ export const mockHandoffNotes: HandoffNote[] = [
       "网络传闻'有学生洗胃'，经初步核实为不实信息，但仍有个别自媒体在传播，需持续关注。",
     author: "李值班",
     createdAt: "2026-06-15 23:00",
+    shiftId: "2026-06-15-night",
+    shiftLabel: "2026-06-15 夜班",
   },
   {
     id: "h-003-2",
@@ -329,6 +337,8 @@ export const mockHandoffNotes: HandoffNote[] = [
       "已联系县疾控中心、市监局、教育局，三方凌晨2点联合发布通报。下一班需联系各学校确认晨检情况，防止恐慌情绪扩散。",
     author: "李值班",
     createdAt: "2026-06-16 02:15",
+    shiftId: "2026-06-15-night",
+    shiftLabel: "2026-06-15 夜班",
   },
 ];
 

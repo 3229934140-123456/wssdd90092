@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, BookOpenCheck, FileX } from "lucide-react";
+import {
+  CalendarDays,
+  BookOpenCheck,
+  FileX,
+  Clock,
+} from "lucide-react";
 import { useEventStore } from "@/store/eventStore";
 
 export default function Home() {
@@ -26,75 +31,108 @@ export default function Home() {
     day: "numeric",
     weekday: "long",
   });
+  const timeStr = now.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const highRiskCount = events.filter(
+    (e) => e.level === "high" || e.level === "critical"
+  ).length;
+  const activeCount = events.filter(
+    (e) => e.status === "monitoring" || e.status === "responding"
+  ).length;
 
   const entryCards = [
     {
       key: "events",
       title: "本周事件",
-      subtitle: "本周舆情动态总览",
+      subtitle: "快速掌握本周舆情动态，3分钟讲清每件事",
       count: weeklyEvents.length,
+      highlight: `其中 ${activeCount} 件处置中${
+        highRiskCount > 0 ? `，${highRiskCount} 件高风险` : ""
+      }`,
       icon: CalendarDays,
-      gradient: "from-primary-600 to-primary-800",
-      bgPattern: "bg-primary-50",
+      gradient: "from-primary-500 via-primary-600 to-primary-800",
       path: "/events",
       delay: "0ms",
     },
     {
       key: "reviews",
       title: "重点复盘",
-      subtitle: "典型事件深度复盘",
+      subtitle: "沉淀典型事件处置经验，供例会学习参考",
       count: reviewEvents.length,
+      highlight: reviewEvents.length > 0 ? "已沉淀处置经验" : "暂无复盘案例",
       icon: BookOpenCheck,
-      gradient: "from-warning-500 to-warning-700",
-      bgPattern: "bg-warning-50",
+      gradient: "from-warning-400 via-warning-500 to-warning-700",
       path: "/reviews",
-      delay: "80ms",
+      delay: "100ms",
     },
     {
       key: "materials",
       title: "待补材料",
-      subtitle: "需补充材料清单",
+      subtitle: "跟踪各部门需补充的证据、报告、审批件",
       count: pendingMaterials.length,
+      highlight:
+        pendingMaterials.length > 0
+          ? `${pendingMaterials.length} 项等待部门提交`
+          : "材料已齐备",
       icon: FileX,
-      gradient: "from-slate-500 to-slate-700",
-      bgPattern: "bg-slate-50",
+      gradient: "from-slate-500 via-slate-600 to-slate-800",
       path: "/materials",
-      delay: "160ms",
+      delay: "200ms",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary-50/30 to-slate-100">
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-8 py-5 flex items-center justify-between sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary-50/20 to-slate-100 flex flex-col">
+      <header className="bg-white/85 backdrop-blur-md border-b border-slate-200/60 px-10 py-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center shadow-lg shadow-primary-200">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center shadow-xl shadow-primary-300/30">
             <BookOpenCheck className="w-6 h-6 text-white" strokeWidth={2.2} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
               舆情复盘看板
             </h1>
             <p className="text-sm text-slate-500">县区融媒体中心 · 主任工作台</p>
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-8">
           <div className="text-right">
-            <p className="text-sm font-medium text-slate-700">{dateStr}</p>
-            <p className="text-xs text-slate-500">
-              当前值班：<span className="font-medium text-primary-700">{currentDuty}</span>
-            </p>
+            <p className="text-sm text-slate-500">{dateStr}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <Clock className="w-3.5 h-3.5 text-primary-600" />
+              <p className="text-sm font-semibold text-slate-700">{timeStr}</p>
+            </div>
+          </div>
+          <div className="h-10 w-px bg-slate-200" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center border-2 border-white shadow-sm">
+              <span className="text-sm font-bold text-primary-700">王</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">{currentDuty}</p>
+              <p className="text-xs text-success-600 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse-soft" />
+                值班中
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="px-8 py-10 max-w-[1400px] mx-auto">
-        <div className="mb-10 animate-fade-in">
-          <h2 className="text-3xl font-bold text-slate-800 tracking-tight mb-2">
+      <main className="flex-1 px-10 py-16 max-w-[1400px] mx-auto w-full">
+        <div className="mb-14 animate-fade-in text-center">
+          <h2 className="text-4xl font-bold text-slate-800 tracking-tight mb-3">
             早上好，王主任
           </h2>
-          <p className="text-slate-500 text-lg">
-            今天共有 <span className="font-semibold text-primary-700">{weeklyEvents.length}</span> 件舆情事件需要关注，
-            <span className="font-semibold text-warning-600"> {pendingMaterials.length}</span> 项材料待补充。
+          <p className="text-slate-500 text-xl">
+            今天共有
+            <span className="font-bold text-primary-700 mx-1.5">{weeklyEvents.length}</span>
+            件舆情事件，
+            <span className="font-bold text-warning-600 mx-1.5">{pendingMaterials.length}</span>
+            项材料待补充
           </p>
         </div>
 
@@ -103,33 +141,34 @@ export default function Home() {
             <button
               key={card.key}
               onClick={() => navigate(card.path)}
-              className="group text-left card-base overflow-hidden animate-slide-up"
+              className="group text-left bg-white rounded-3xl shadow-card overflow-hidden animate-slide-up transition-all duration-500 hover:shadow-card-hover hover:-translate-y-1.5"
               style={{ animationDelay: card.delay }}
             >
-              <div className={`h-2 bg-gradient-to-r ${card.gradient}`} />
-              <div className={`p-8 ${card.bgPattern} bg-opacity-30`}>
-                <div className="flex items-start justify-between mb-6">
+              <div className={`h-3 bg-gradient-to-r ${card.gradient}`} />
+              <div className="p-10">
+                <div className="flex items-start justify-between mb-8">
                   <div
-                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${card.gradient} flex items-center justify-center shadow-lg shadow-primary-200/50 group-hover:scale-110 transition-transform duration-300`}
+                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${card.gradient} flex items-center justify-center shadow-xl shadow-primary-200/40 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}
                   >
-                    <card.icon className="w-7 h-7 text-white" strokeWidth={2} />
+                    <card.icon className="w-8 h-8 text-white" strokeWidth={2} />
                   </div>
-                  {card.count > 0 && (
-                    <span
-                      className={`min-w-[2.5rem] h-10 px-3 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md bg-gradient-to-br ${card.gradient} animate-pulse-soft`}
-                    >
-                      {card.count}
-                    </span>
-                  )}
+                  <div
+                    className={`min-w-[3.5rem] h-14 px-4 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl bg-gradient-to-br ${card.gradient}`}
+                  >
+                    {card.count}
+                  </div>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-1 group-hover:text-primary-700 transition-colors">
+                <h3 className="text-3xl font-bold text-slate-800 mb-2 group-hover:text-primary-700 transition-colors">
                   {card.title}
                 </h3>
-                <p className="text-slate-500">{card.subtitle}</p>
-                <div className="mt-6 flex items-center gap-2 text-primary-600 font-medium group-hover:gap-3 transition-all duration-300">
-                  <span>进入查看</span>
+                <p className="text-slate-500 text-base mb-4">{card.subtitle}</p>
+                <p className="text-sm font-medium text-primary-600 mb-8">
+                  {card.highlight}
+                </p>
+                <div className="flex items-center gap-2 text-slate-400 font-medium group-hover:text-primary-600 group-hover:gap-4 transition-all duration-300 pt-5 border-t border-slate-100">
+                  <span>进入查看详情</span>
                   <svg
-                    className="w-5 h-5"
+                    className="w-6 h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -137,7 +176,7 @@ export default function Home() {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                       d="M17 8l4 4m0 0l-4 4m4-4H3"
                     />
                   </svg>
@@ -146,77 +185,13 @@ export default function Home() {
             </button>
           ))}
         </div>
-
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="card-base p-6 animate-slide-up" style={{ animationDelay: "240ms" }}>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-5 bg-primary-600 rounded-full" />
-              最新舆情速览
-            </h3>
-            <div className="space-y-3">
-              {weeklyEvents.slice(0, 3).map((evt) => (
-                <button
-                  key={evt.id}
-                  onClick={() => navigate(`/events/${evt.id}`)}
-                  className="w-full text-left p-4 rounded-xl bg-slate-50 hover:bg-primary-50 transition-colors flex items-start gap-3 group"
-                >
-                  <span
-                    className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      evt.level === "critical"
-                        ? "bg-red-500"
-                        : evt.level === "high"
-                        ? "bg-warning-500"
-                        : evt.level === "medium"
-                        ? "bg-yellow-400"
-                        : "bg-success-500"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-800 group-hover:text-primary-700 truncate">
-                      {evt.title}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {evt.createdAt} ·{" "}
-                      {evt.status === "monitoring"
-                        ? "监测中"
-                        : evt.status === "responding"
-                        ? "处置中"
-                        : evt.status === "resolved"
-                        ? "已处置"
-                        : "已复盘"}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="card-base p-6 animate-slide-up" style={{ animationDelay: "320ms" }}>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-5 bg-warning-500 rounded-full" />
-              待办提醒
-            </h3>
-            <div className="space-y-3">
-              {pendingMaterials.slice(0, 3).map((mat) => (
-                <div
-                  key={mat.id}
-                  className="p-4 rounded-xl bg-warning-50 border border-warning-100 flex items-start gap-3"
-                >
-                  <FileX className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-800 text-sm">
-                      【{mat.type}】{mat.eventTitle}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {mat.department} · 截止 {mat.deadline}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </main>
+
+      <footer className="px-10 py-5 text-center">
+        <p className="text-xs text-slate-400">
+          舆情复盘看板 · 县区融媒体中心内部使用
+        </p>
+      </footer>
     </div>
   );
 }

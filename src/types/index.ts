@@ -36,6 +36,7 @@ export interface TimelineCard {
   channels: string[];
   order: number;
   sourceTime: string;
+  placeholder?: boolean;
 }
 
 export interface ConcernItem {
@@ -54,6 +55,14 @@ export interface HandoffNote {
   content: string;
   author: string;
   createdAt: string;
+  shiftId: string;
+  shiftLabel: string;
+}
+
+export interface ShiftInfo {
+  id: string;
+  label: string;
+  startAt: string;
 }
 
 export interface MaterialItem {
