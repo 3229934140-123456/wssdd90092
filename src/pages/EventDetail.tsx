@@ -9,6 +9,7 @@ import HandoffSection from "@/components/HandoffSection";
 import HandoffStatusSection from "@/components/HandoffStatusSection";
 import EventMaterialsSection from "@/components/EventMaterialsSection";
 import ReviewOutlineSection from "@/components/ReviewOutlineSection";
+import ReviewReportSection from "@/components/ReviewReportSection";
 import {
   AlertTriangle,
   Clock,
@@ -17,6 +18,7 @@ import {
   FileText,
   BookOpenCheck,
   User,
+  AlertCircle,
 } from "lucide-react";
 
 export default function EventDetail() {
@@ -25,6 +27,8 @@ export default function EventDetail() {
   const events = useEventStore((s) => s.events);
   const allTimelineCards = useEventStore((s) => s.timelineCards);
   const getMaterialsByEventId = useEventStore((s) => s.getMaterialsByEventId);
+  const isMaterialOverdue = useEventStore((s) => s.isMaterialOverdue);
+  const getOverdueMaterials = useEventStore((s) => s.getOverdueMaterials);
   const allMaterials = useEventStore((s) => s.materials);
 
   const event = useMemo(
@@ -41,6 +45,15 @@ export default function EventDetail() {
   const materials = useMemo(
     () => getMaterialsByEventId(id || ""),
     [getMaterialsByEventId, id, allMaterials]
+  );
+
+  const pendingMats = useMemo(
+    () => materials.filter((m) => m.status === "pending"),
+    [materials]
+  );
+  const overdueCount = useMemo(
+    () => pendingMats.filter((m) => isMaterialOverdue(m)).length,
+    [pendingMats, isMaterialOverdue]
   );
 
   if (!event) {
@@ -91,6 +104,20 @@ export default function EventDetail() {
       />
 
       <main className="px-8 py-8 max-w-[1400px] mx-auto space-y-6">
+        {overdueCount > 0 && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 flex items-start gap-4 animate-slide-in-right">
+            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1">
+              <p className="text-base font-bold text-red-800 mb-1">
+                ⚠️ 本事件有 {overdueCount} 项材料已超期！
+              </p>
+              <p className="text-sm text-red-700/80">
+                请立即前往「待补材料」板块催办责任部门尽快提交。交接时请将超期材料作为重点事项转交下一班。
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="card-base p-8 animate-fade-in">
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -148,7 +175,7 @@ export default function EventDetail() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">传播节点</p>
-                <p className="text-sm font-semibold text-slate-700">{timelineCards.length} 个</p>
+                <p className="text-sm font-semibold text-slate-700">{timelineCards.filter((c) => !c.placeholder).length}/4 个</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
@@ -161,13 +188,14 @@ export default function EventDetail() {
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-              <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center">
-                <FileText className="w-4.5 h-4.5 text-orange-600" />
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overdueCount > 0 ? "bg-red-100" : "bg-orange-100"}`}>
+                <FileText className={`w-4.5 h-4.5 ${overdueCount > 0 ? "text-red-600" : "text-orange-600"}`} />
               </div>
               <div>
                 <p className="text-xs text-slate-500">待补材料</p>
-                <p className="text-sm font-semibold text-slate-700">
-                  {materials.filter((m) => m.status !== "approved").length} 项
+                <p className={`text-sm font-semibold ${overdueCount > 0 ? "text-red-700" : "text-slate-700"}`}>
+                  {pendingMats.length} 项
+                  {overdueCount > 0 && <span className="text-xs ml-1">({overdueCount}项超期)</span>}
                 </p>
               </div>
             </div>
@@ -198,11 +226,18 @@ export default function EventDetail() {
         <EventMaterialsSection eventId={event.id} eventTitle={event.title} />
 
         {event.isReview && (
-          <ReviewOutlineSection
-            event={event}
-            timelineCards={timelineCards}
-            eventId={event.id}
-          />
+          <>
+            <ReviewOutlineSection
+              event={event}
+              timelineCards={timelineCards}
+              eventId={event.id}
+            />
+            <ReviewReportSection
+              event={event}
+              timelineCards={timelineCards}
+              eventId={event.id}
+            />
+          </>
         )}
       </main>
     </div>

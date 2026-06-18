@@ -10,6 +10,7 @@ export type ConcernCategory =
   | "healthcare"
   | "other";
 export type HandoffSection = "unverified" | "to_contact" | "confidential";
+export type ReportVersion = "director" | "internal";
 
 export interface EventItem {
   id: string;
@@ -96,6 +97,15 @@ export interface MaterialItem {
   department: string;
   deadline: string;
   status: "pending" | "submitted" | "approved";
+}
+
+export interface UrgeMessage {
+  id: string;
+  materialId: string;
+  content: string;
+  formalVersion: string;
+  wechatVersion: string;
+  isOverdue: boolean;
 }
 
 export const CONCERN_CATEGORY_LABELS: Record<ConcernCategory, string> = {

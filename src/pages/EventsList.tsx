@@ -27,7 +27,7 @@ export default function EventsList() {
   };
 
   const stats = useMemo(() => {
-    const totalPending = materials.filter((m) => m.status !== "approved").length;
+    const totalPending = materials.filter((m) => m.status === "pending").length;
     return {
       total: events.length,
       high: events.filter((e) => e.level === "high" || e.level === "critical").length,
@@ -39,7 +39,7 @@ export default function EventsList() {
   const getEventPendingCount = useCallback(
     (eventId: string) => {
       const eventMats = getMaterialsByEventId(eventId);
-      return eventMats.filter((m) => m.status !== "approved").length;
+      return eventMats.filter((m) => m.status === "pending").length;
     },
     [getMaterialsByEventId, allMaterials]
   );

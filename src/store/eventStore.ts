@@ -8,6 +8,7 @@ import type {
   HandoffSection,
   EventHandoffStatus,
   HandoffStatusItem,
+  UrgeMessage,
 } from "@/types";
 import {
   mockEvents,
@@ -45,6 +46,64 @@ function saveToStorage<T>(key: string, value: T) {
   }
 }
 
+function parseDeadline(deadline: string): Date {
+  const parts = deadline.split("-");
+  if (parts.length === 3) {
+    return new Date(
+      parseInt(parts[0]),
+      parseInt(parts[1]) - 1,
+      parseInt(parts[2]),
+      23,
+      59,
+      59
+    );
+  }
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+}
+
+function isMaterialOverdue(material: MaterialItem): boolean {
+  if (material.status !== "pending") return false;
+  const deadline = parseDeadline(material.deadline);
+  const now = new Date();
+  return now > deadline;
+}
+
+function generateUrgeMessage(material: MaterialItem): UrgeMessage {
+  const overdue = isMaterialOverdue(material);
+  const deadlineText = overdue
+    ? `已于 ${material.deadline} 到期`
+    : `截止日期为 ${material.deadline}`;
+
+  const formalVersion = `【材料催办】
+
+尊敬的${material.department}相关负责人：
+
+您好！关于「${material.eventTitle}」事件，${material.type}尚未提交，${deadlineText}。
+
+该材料为舆情处置和复盘工作的重要依据，请尽快安排提交。如有困难或需延期，请提前与融媒体中心值班室联系。
+
+感谢配合！
+
+融媒体中心值班室
+${new Date().toLocaleDateString("zh-CN")}`;
+
+  const wechatVersion = `${material.department}的老师您好～打扰啦！
+
+关于「${material.eventTitle}」的${material.type}，${deadlineText}，麻烦帮忙尽快提交一下哦🙏
+
+这个是舆情复盘要用的材料，辛苦啦！有问题随时联系我～`;
+
+  return {
+    id: `urge-${material.id}`,
+    materialId: material.id,
+    content: wechatVersion,
+    formalVersion,
+    wechatVersion,
+    isOverdue: overdue,
+  };
+}
+
 interface EventStore {
   events: EventItem[];
   timelineCards: TimelineCard[];
@@ -71,12 +130,25 @@ interface EventStore {
     content: string,
     author: string
   ) => void;
+  getPendingHandoffItems: (eventId: string) => HandoffStatusItem[];
+  getCompletedHandoffItems: (eventId: string) => HandoffStatusItem[];
 
   getMaterialsByEventId: (eventId: string) => MaterialItem[];
+  getPendingMaterials: () => MaterialItem[];
+  getCompletedMaterials: () => MaterialItem[];
+  getMaterialsGroupedByEvent: () => Array<{
+    eventId: string;
+    eventTitle: string;
+    materials: MaterialItem[];
+    pendingCount: number;
+  }>;
   setMaterialStatus: (
     materialId: string,
     status: MaterialItem["status"]
   ) => void;
+  isMaterialOverdue: (material: MaterialItem) => boolean;
+  generateUrgeMessage: (material: MaterialItem) => UrgeMessage;
+  getOverdueMaterials: () => MaterialItem[];
 
   getShiftRelationForNote: (note: HandoffNote) => "current" | "previous" | "older";
 }
@@ -255,8 +327,72 @@ export const useEventStore = create<EventStore>((set, get) => ({
       return { handoffStatuses: next };
     }),
 
+  getPendingHandoffItems: (eventId) => {
+    const status = get().getEventHandoffStatus(eventId);
+    const notes = get().handoffNotes.filter((n) => n.eventId === eventId);
+    
+    const statusItemIds = new Set(status?.items.map((i) => i.noteId) || []);
+    const fromNotes: HandoffStatusItem[] = notes
+      .filter((n) => !statusItemIds.has(n.id))
+      .map((n) => ({
+        id: `hs-pending-${n.id}`,
+        eventId: n.eventId,
+        noteId: n.id,
+        section: n.section,
+        content: n.content,
+        done: false,
+        createdAt: n.createdAt,
+      }));
+    
+    const fromStatus = status?.items.filter((i) => !i.done) || [];
+    return [...fromNotes, ...fromStatus];
+  },
+
+  getCompletedHandoffItems: (eventId) => {
+    const status = get().getEventHandoffStatus(eventId);
+    if (!status) return [];
+    return status.items.filter((i) => i.done);
+  },
+
   getMaterialsByEventId: (eventId) =>
     get().materials.filter((m) => m.eventId === eventId),
+
+  getPendingMaterials: () =>
+    get().materials.filter((m) => m.status === "pending"),
+
+  getCompletedMaterials: () =>
+    get().materials.filter((m) => m.status !== "pending"),
+
+  getMaterialsGroupedByEvent: () => {
+    const allMaterials = get().materials;
+    const eventMap = new Map<
+      string,
+      {
+        eventId: string;
+        eventTitle: string;
+        materials: MaterialItem[];
+        pendingCount: number;
+      }
+    >();
+
+    allMaterials.forEach((m) => {
+      if (!eventMap.has(m.eventId)) {
+        eventMap.set(m.eventId, {
+          eventId: m.eventId,
+          eventTitle: m.eventTitle,
+          materials: [],
+          pendingCount: 0,
+        });
+      }
+      const group = eventMap.get(m.eventId)!;
+      group.materials.push(m);
+      if (m.status === "pending") {
+        group.pendingCount++;
+      }
+    });
+
+    return Array.from(eventMap.values()).sort((a, b) => b.pendingCount - a.pendingCount);
+  },
 
   setMaterialStatus: (materialId, status) =>
     set((state) => {
@@ -266,6 +402,13 @@ export const useEventStore = create<EventStore>((set, get) => ({
       saveToStorage(STORAGE_KEY_MATERIALS, next);
       return { materials: next };
     }),
+
+  isMaterialOverdue,
+
+  generateUrgeMessage,
+
+  getOverdueMaterials: () =>
+    get().materials.filter((m) => m.status === "pending" && isMaterialOverdue(m)),
 
   getShiftRelationForNote: (note) => getShiftRelation(note.shiftId),
 }));

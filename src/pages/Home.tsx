@@ -19,7 +19,7 @@ export default function Home() {
     [events]
   );
   const pendingMaterials = useMemo(
-    () => materials.filter((m) => m.status !== "approved"),
+    () => materials.filter((m) => m.status === "pending"),
     [materials]
   );
 

@@ -6,16 +6,20 @@ import {
   Lightbulb,
   Copy,
   Check,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { useEventStore } from "@/store/eventStore";
 import {
   CONCERN_CATEGORY_LABELS,
+  HANDOFF_SECTION_LABELS,
   type ConcernCategory,
   type TimelineCard,
   type ConcernItem,
   type HandoffNote,
   type EventItem,
+  type HandoffStatusItem,
 } from "@/types";
 import { getShiftRelation } from "@/utils/shift";
 import { TIMELINE_TYPE_LABELS } from "@/types";
@@ -30,7 +34,9 @@ function generateOutline(
   event: EventItem,
   cards: TimelineCard[],
   concerns: ConcernItem[],
-  handoffNotes: HandoffNote[]
+  handoffNotes: HandoffNote[],
+  completedItems: HandoffStatusItem[],
+  pendingItems: HandoffStatusItem[]
 ) {
   const nonPlaceholderCards = cards.filter((c) => !c.placeholder);
   const checkedConcerns = concerns.filter((c) => c.checked);
@@ -73,33 +79,50 @@ ${nonPlaceholderCards
 事件等级：${event.level === "critical" ? "特别重大" : event.level === "high" ? "重大" : event.level === "medium" ? "较重" : "一般"}
 当前状态：${event.status === "monitoring" ? "监测中" : event.status === "responding" ? "处置中" : event.status === "resolved" ? "已处置" : "已复盘"}
 
-已采取的处置措施：
+已完成的处置措施：
 `;
 
   const officialCard = nonPlaceholderCards.find((c) => c.type === "official");
   if (officialCard) {
-    actionSection += `- 官方回应：${officialCard.title}
+    actionSection += `- ✅ 官方回应：${officialCard.title}
    发布时间：${officialCard.sourceTime}
    回应摘要：${officialCard.summary.slice(0, 120)}${officialCard.summary.length > 120 ? "..." : ""}
+`;
+  }
+
+  if (completedItems.length > 0) {
+    completedItems.forEach((item) => {
+      actionSection += `- ✅ [${HANDOFF_SECTION_LABELS[item.section]}] ${item.content}
+`;
+    });
+  }
+
+  const hasContacts = handoffNotes.some((n) => n.section === "to_contact");
+  if (hasContacts && completedItems.length === 0 && !officialCard) {
+    actionSection += `- ✅ 部门联动：已协调相关责任部门介入处置
 `;
   }
 
   const prevShiftNotes = handoffNotes.filter(
     (n) => getShiftRelation(n.shiftId) !== "current"
   );
-  const hasContacts = handoffNotes.some((n) => n.section === "to_contact");
-  if (hasContacts) {
-    actionSection += `- 部门联动：已协调相关责任部门处置
-`;
-  }
-
   if (prevShiftNotes.length > 0) {
-    actionSection += `- 值班交接：已完成 ${prevShiftNotes.length} 次信息交接，确保处置连续性
+    actionSection += `- ✅ 值班交接：已完成 ${prevShiftNotes.length} 次信息交接，确保处置连续性
 `;
   }
 
-  if (!officialCard && !hasContacts && prevShiftNotes.length === 0) {
+  if (!officialCard && completedItems.length === 0 && prevShiftNotes.length === 0) {
     actionSection += "- （请补充记录已采取的处置措施）\n";
+  }
+
+  if (pendingItems.length > 0) {
+    actionSection += `
+⏳ 待完成事项（需继续跟踪）：
+`;
+    pendingItems.forEach((item) => {
+      actionSection += `- [${HANDOFF_SECTION_LABELS[item.section]}] ${item.content}
+`;
+    });
   }
 
   if (event.reviewConclusion) {
@@ -130,6 +153,17 @@ ${topQuestions
 `;
   }
 
+  if (pendingItems.length > 0) {
+    lessonSection += `
+⚠️ 遗留问题提醒：
+以下事项未处理完，已保留到下一班提醒中，请交接时重点关注：
+`;
+    pendingItems.forEach((item) => {
+      lessonSection += `- [${HANDOFF_SECTION_LABELS[item.section]}] ${item.content}
+`;
+    });
+  }
+
   lessonSection += `
 改进建议：
 1. 舆情发现及时性：${
@@ -139,7 +173,8 @@ ${topQuestions
   }
 2. 信息公开速度：建议进一步缩短官方回应时间，把握舆论主动权
 3. 内部协同机制：建议完善跨部门联动响应流程，提高处置效率
-4. 后续预防措施：建议针对同类事件制定应急预案，避免次生舆情`;
+4. 后续预防措施：建议针对同类事件制定应急预案，避免次生舆情
+5. 交接效率：建议提前处理本班事项，减少遗留问题转交下一班`;
 
   return {
     timeline: timelineSection,
@@ -156,6 +191,9 @@ export default function ReviewOutlineSection({
 }: ReviewOutlineSectionProps) {
   const allConcerns = useEventStore((s) => s.concerns);
   const allHandoffNotes = useEventStore((s) => s.handoffNotes);
+  const getCompletedHandoffItems = useEventStore((s) => s.getCompletedHandoffItems);
+  const getPendingHandoffItems = useEventStore((s) => s.getPendingHandoffItems);
+  const allHandoffStatuses = useEventStore((s) => s.handoffStatuses);
 
   const concerns = useMemo(
     () => allConcerns.filter((c) => c.eventId === eventId),
@@ -165,10 +203,26 @@ export default function ReviewOutlineSection({
     () => allHandoffNotes.filter((n) => n.eventId === eventId),
     [allHandoffNotes, eventId]
   );
+  const completedItems = useMemo(
+    () => getCompletedHandoffItems(eventId),
+    [getCompletedHandoffItems, eventId, allHandoffStatuses]
+  );
+  const pendingItems = useMemo(
+    () => getPendingHandoffItems(eventId),
+    [getPendingHandoffItems, eventId, allHandoffStatuses]
+  );
 
   const outline = useMemo(
-    () => generateOutline(event, timelineCards, concerns, handoffNotes),
-    [event, timelineCards, concerns, handoffNotes]
+    () =>
+      generateOutline(
+        event,
+        timelineCards,
+        concerns,
+        handoffNotes,
+        completedItems,
+        pendingItems
+      ),
+    [event, timelineCards, concerns, handoffNotes, completedItems, pendingItems]
   );
 
   const [activeTab, setActiveTab] = useState<"timeline" | "actions" | "lessons">(
@@ -201,29 +255,43 @@ export default function ReviewOutlineSection({
             复盘提纲
           </h3>
           <p className="text-sm text-slate-500 mt-1.5">
-            系统自动整理，主任开会可直接按三段式汇报
+            系统自动整理，与交接状态联动，主任开会可直接按三段式汇报
           </p>
         </div>
-        <button
-          onClick={handleCopy}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
-            copied
-              ? "bg-success-100 text-success-700"
-              : "bg-primary-50 text-primary-700 hover:bg-primary-100"
-          }`}
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4" />
-              已复制
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              复制全部
-            </>
+        <div className="flex items-center gap-3 flex-wrap">
+          {completedItems.length > 0 && (
+            <span className="tag bg-success-50 text-success-700 border border-success-200">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              已完成 {completedItems.length} 项
+            </span>
           )}
-        </button>
+          {pendingItems.length > 0 && (
+            <span className="tag bg-warning-50 text-warning-700 border border-warning-200">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              待处理 {pendingItems.length} 项
+            </span>
+          )}
+          <button
+            onClick={handleCopy}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
+              copied
+                ? "bg-success-100 text-success-700"
+                : "bg-primary-50 text-primary-700 hover:bg-primary-100"
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                已复制
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                复制全部
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 mb-5 p-1 bg-slate-100 rounded-xl w-fit">
@@ -255,18 +323,33 @@ export default function ReviewOutlineSection({
         </pre>
       </div>
 
-      <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-warning-50 to-orange-50 border border-warning-100 flex items-start gap-3">
-        <BookOpenCheck className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-warning-800 mb-1">
-            汇报提示
-          </p>
-          <p className="text-xs text-warning-700/80">
-            点击右上角「复制全部」可复制完整三段式汇报稿，按时间线 → 处置动作 →
-            经验教训的逻辑汇报，3-5 分钟可完整讲清事件。
-          </p>
+      {pendingItems.length > 0 && (
+        <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-warning-50 to-orange-50 border border-warning-100 flex items-start gap-3 animate-slide-in-right">
+          <AlertCircle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-warning-800 mb-1">
+              {pendingItems.length} 项待处理事项已联动到提纲
+            </p>
+            <p className="text-xs text-warning-700/80">
+              这些事项已在「处置动作」中标注为待完成，在「经验教训」中作为遗留问题提醒。未处理完的会自动保留到下一班交接提醒中，刷新后处理结果仍然有效。
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {completedItems.length > 0 && pendingItems.length === 0 && (
+        <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-success-50 to-green-50 border border-success-100 flex items-start gap-3 animate-slide-in-right">
+          <CheckCircle2 className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-success-800 mb-1">
+              本班 {completedItems.length} 项事项已全部处理完毕
+            </p>
+            <p className="text-xs text-success-700/80">
+              所有已处理事项已在「处置动作」中标注为✅已完成，可直接用于复盘汇报。
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
