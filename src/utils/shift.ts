@@ -103,3 +103,4 @@ export const STORAGE_KEY_HANDOFF = "yq-board-handoff-notes";
 export const STORAGE_KEY_CONCERNS = "yq-board-concerns";
 export const STORAGE_KEY_HANDOFF_STATUS = "yq-board-handoff-status";
 export const STORAGE_KEY_MATERIALS = "yq-board-materials";
+export const STORAGE_KEY_URGE_RECORDS = "yq-board-urge-records";

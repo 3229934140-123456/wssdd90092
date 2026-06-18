@@ -232,11 +232,7 @@ export default function EventDetail() {
               timelineCards={timelineCards}
               eventId={event.id}
             />
-            <ReviewReportSection
-              event={event}
-              timelineCards={timelineCards}
-              eventId={event.id}
-            />
+            <ReviewReportSection event={event} />
           </>
         )}
       </main>

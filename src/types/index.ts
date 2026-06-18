@@ -10,7 +10,18 @@ export type ConcernCategory =
   | "healthcare"
   | "other";
 export type HandoffSection = "unverified" | "to_contact" | "confidential";
-export type ReportVersion = "director" | "internal";
+export type ReportVersion = "director" | "internal" | "meeting" | "archive";
+export type OverdueLevel = "none" | "mild" | "serious" | "critical";
+
+export interface UrgeRecord {
+  id: string;
+  materialId: string;
+  eventId: string;
+  type: "wechat" | "formal";
+  content: string;
+  createdAt: string;
+  operator: string;
+}
 
 export interface EventItem {
   id: string;
